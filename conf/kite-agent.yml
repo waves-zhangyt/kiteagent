@@ -1,0 +1,9 @@
+#agent 唯一标志 如果在启动参数中指定，则覆盖掉本配置
+#agentId: local-agent
+
+#kite manager 服务连接地址
+wssUrl: wss://localhost:8443/kite/ws
+#wssUrl: wss://yt.wavesxa.com:8443/kite/ws
+
+#公钥文件路径
+tlsPublicKey: conf/public_key.der

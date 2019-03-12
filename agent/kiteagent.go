@@ -1,0 +1,236 @@
+// Created By ytzhang0828@qq.com
+// Use of this source code is governed by a Apache-2.0 LICENSE
+
+/*
+   main包。 包含程序启动入口，初始化连接，命令分派等功能
+*/
+package main
+
+import (
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
+	"fmt"
+	"github.com/gorilla/websocket"
+	"github.com/waves-zhangyt/kiteagent/agent/cmd"
+	"github.com/waves-zhangyt/kiteagent/agent/conf"
+	"github.com/waves-zhangyt/kiteagent/agent/httpproxy"
+	"github.com/waves-zhangyt/kiteagent/agent/util"
+	"io/ioutil"
+	"log"
+	"os"
+	"os/signal"
+	"strings"
+	"time"
+)
+
+var done = make(chan struct{})
+
+// 异步队列，最多1000个累积
+var asynCmdResultChannel = make(chan *cmd.CmdResult, 1000)
+
+func main() {
+
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	//加载配置文件
+	conf.LoadConfig()
+
+	//启动客户端，并进行命令分发
+	var conn []*websocket.Conn
+	conn = append(conn, nil)
+	startWssClient(conn)
+
+	//启动异步消息回写机制
+	go asyncCmdResult(conn)
+
+	//启动心跳
+	go intervalPing(conn)
+
+	//结束客户端执行入口
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+
+	for {
+		select {
+		case <-done:
+			return
+		case <-interrupt: //终结客户端后，发送关闭连接信息给服务端
+			util.Info.Println("interrupt")
+			// Cleanly close the connection by sending a close message and then
+			// waiting (with timeout) for the server to close the connection.
+			if conn[0] != nil {
+				err := conn[0].WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+				if err != nil {
+					util.Info.Println("write close:", err)
+					return
+				}
+			}
+			select {
+			case <-done:
+			case <-time.After(time.Second):
+			}
+			return
+		}
+	}
+
+}
+
+func connect(conn []*websocket.Conn) {
+	//拨号
+	defer func() {
+		if e := recover(); e != nil {
+			util.Error.Printf("Panicing %s\n", e)
+			util.Info.Printf("等待5秒重新尝试连接")
+			time.Sleep(5 * time.Second)
+			connect(conn)
+		}
+	}()
+
+	if conn[0] != nil { //从panic中恢复的时候，清除掉
+		conn[0].Close()
+	}
+
+	dialer := websocket.Dialer{
+		TLSClientConfig: createTLSConfig(), // tls 设置
+	}
+
+	url := conf.DefaultConfig.WssUrl + "?clientId=" + conf.DefaultConfig.AgentId + "&ipv4=" + util.LocalIPv4Addr()
+	connItem, _, err := dialer.Dial(url, nil)
+	conn[0] = connItem
+	if err != nil {
+		msg := fmt.Sprintf("拨号失败: %s", err)
+		panic(msg)
+	}
+}
+
+func createTLSConfig() *tls.Config {
+	pool := x509.NewCertPool()
+	caCertPath := conf.DefaultConfig.TlsPublicKey
+	caCrt, err := ioutil.ReadFile(caCertPath)
+	if err != nil {
+		fmt.Println("ReadFile err:", err)
+		panic(err)
+	}
+	pool.AppendCertsFromPEM(caCrt)
+	config := &tls.Config{
+		RootCAs:            pool,
+		InsecureSkipVerify: true, //跳过x.509证书检测，使信任所有的证书（因为我用的是自签名证书，所以必须要有这个）
+	}
+
+	return config
+}
+
+func startWssClient(conn []*websocket.Conn) {
+	//消息接收与派送给命令处理
+	go func() {
+		defer func() {
+			if e := recover(); e != nil {
+				util.Error.Printf("Panicing %s\n", e)
+				util.Info.Printf("等待5秒重新尝试重新连接和读取")
+				time.Sleep(5 * time.Second)
+				startWssClient(conn)
+			}
+		}()
+		connect(conn)
+		for {
+			//以json数据作为基础协议
+			var v cmd.Cmd
+			//读取json
+			if conn[0] == nil {
+				return
+			}
+			err := conn[0].ReadJSON(&v)
+			if err != nil {
+				errMsg := fmt.Sprintf("%s", err)
+				if strings.Contains(errMsg, "close 1000 (normal)") {
+					util.Info.Println("正常退出")
+					close(done)
+					conn[0] = nil
+					return
+				}
+
+				util.Error.Println("read:", err)
+				msg := fmt.Sprintf("读取错误 %s", err)
+				conn[0] = nil
+				panic(msg)
+			}
+			//异步执行
+			go func() {
+				cmdResult := Dispatch(&v)
+
+				if cmdResult != nil {
+					util.Debug.Printf("发送信息: %s", cmdResult)
+				}
+
+				if cmdResult == nil {
+					//do nothing
+				} else if v.Head.Async == 0 { // 同步消息
+					if conn[0].WriteJSON(cmdResult) != nil {
+						util.Error.Println("发送结果消息失败")
+					}
+				} else if v.Head.Async == 1 { // 异步消息
+					//标志返回结果是异步的
+					cmdResult.Async = 1
+					//压如队列等待读取
+					asynCmdResultChannel <- cmdResult
+				}
+			}()
+		}
+	}()
+}
+
+func asyncCmdResult(conn []*websocket.Conn) {
+	for {
+		cmdResult := <-asynCmdResultChannel
+		if cmdResult != nil {
+			err := conn[0].WriteJSON(cmdResult)
+			if err != nil {
+				util.Error.Printf("写消息给客户端失败,重新压入原队列 %v", cmdResult)
+				//发现错误从新返回队列
+				asynCmdResultChannel <- cmdResult
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+//心跳检测
+func intervalPing(conn []*websocket.Conn) {
+	for {
+		if conn[0] != nil {
+			reqPing := cmd.CmdResult{
+				Type:   cmd.Req_ping,
+				Stdout: "ping",
+			}
+			err := conn[0].WriteJSON(reqPing)
+			if err != nil {
+				util.Error.Printf("心跳检测失败: %s\n", err)
+			}
+		}
+		//每隔一分钟一次心跳
+		time.Sleep(time.Minute)
+	}
+}
+
+//命令分发
+func Dispatch(command *cmd.Cmd) *cmd.CmdResult {
+	text, _ := json.Marshal(command)
+	util.Debug.Printf("收到信息：%s", text)
+
+	cmdType := command.Head.Type
+
+	if strings.HasPrefix(cmdType, cmd.Res_prefix) {
+		return nil
+	}
+
+	switch cmdType {
+	case cmd.CmdRun:
+		return cmd.CommandRun(command)
+	case cmd.ProxyHttp:
+		return httpproxy.DoHttpProxy(command)
+	default:
+		util.Info.Printf("不支持\"%s\"类型命令\n", cmdType)
+		return nil
+	}
+}
