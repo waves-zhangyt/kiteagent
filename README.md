@@ -3,8 +3,6 @@ kiteagent项目是是flying-kite的子项目，是kitemanager的客户端(agent)
 
 暂时文档放在了 https://yt.wavesxa.com/blog/readBlog/24.html
 
-### 本篇只是简单介绍，具体API描述见页尾API描述链接
-
 ####一. Flying-Kite 是类saltstack的计算资源节点管理工具
 可实现远程指令调用下发、部署执行，并作为节点agent等功能；可视为云计算的基础设施。
 目前支持
