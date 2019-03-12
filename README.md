@@ -14,11 +14,13 @@ kiteagent项目是是flying-kite的子项目，是kitemanager的客户端(agent)
 
 
 ####二. 特点：
+```
     （1）跨云计算overlay网络管理机器节点
 	（2）客户端由go语言编写，体积小巧，性能强悍；服务端由java编写，方便企业级扩展。
 	（3）客户端服务端通过https（wss）加密传输指令，确保信息安全传输。
 	（4）系统支持同步执行和异步执行两种指令操作。
 	（5）支持linux,windows,mac系统应用。
+```
 
 ####三. 体验
 详见 https://yt.wavesxa.com/blog/readBlog/27.html
