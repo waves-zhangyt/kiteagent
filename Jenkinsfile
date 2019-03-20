@@ -4,6 +4,7 @@ pipeline {
         stage('build') {
             steps {
                 sh 'go version'
+                sh 'go build agent/kiteagent.go'
             }
         }
     }
