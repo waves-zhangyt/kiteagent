@@ -7,3 +7,6 @@ wssUrl: wss://localhost:8443/kite/ws
 
 #公钥文件路径
 tlsPublicKey: conf/public_key.der
+
+#内置 http server port
+httpServerPort: 19988

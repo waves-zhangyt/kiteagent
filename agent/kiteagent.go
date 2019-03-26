@@ -10,11 +10,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/waves-zhangyt/kiteagent/agent/cmd"
 	"github.com/waves-zhangyt/kiteagent/agent/conf"
 	"github.com/waves-zhangyt/kiteagent/agent/httpproxy"
+	"github.com/waves-zhangyt/kiteagent/agent/httpserver"
 	"github.com/waves-zhangyt/kiteagent/agent/util"
 	"io/ioutil"
 	"log"
@@ -24,6 +26,15 @@ import (
 	"time"
 )
 
+func askVersion() bool {
+	args := flag.Args()
+	if len(args) != 0 && args[0] == "version" {
+		fmt.Println(httpserver.Version)
+		return true
+	}
+	return false
+}
+
 var done = make(chan struct{})
 
 // 异步队列，最多1000个累积
@@ -32,9 +43,18 @@ var asynCmdResultChannel = make(chan *cmd.CmdResult, 1000)
 func main() {
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	flag.Parse()
 
-	//加载配置文件
+	// 版本命令执行
+	if askVersion() {
+		return
+	}
+
+	// 加载配置文件
 	conf.LoadConfig()
+
+	// 初始化内置http服务
+	httpserver.InitServer()
 
 	//启动客户端，并进行命令分发
 	var conn []*websocket.Conn

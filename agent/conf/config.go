@@ -16,9 +16,10 @@ import (
 
 // 基本配置结构
 type Config struct {
-	AgentId      string `json:"agentId" yaml:"agentId"`           //客户端唯一标志
-	WssUrl       string `json:"wssUrl" yaml:"wssUrl"`             //连接服务端url
-	TlsPublicKey string `json:"tlsPublicKey" yaml:"tlsPublicKey"` //tls 自签名证书文件路径
+	AgentId        string `json:"agentId" yaml:"agentId"`               //客户端唯一标志
+	WssUrl         string `json:"wssUrl" yaml:"wssUrl"`                 //连接服务端url
+	TlsPublicKey   string `json:"tlsPublicKey" yaml:"tlsPublicKey"`     //tls 自签名证书文件路径
+	HttpServerPort int    `json:"httpServerPort" yaml:"httpServerPort"` //内置http服务端口
 }
 
 // 默认配置变量
@@ -45,7 +46,9 @@ func pathExists(path string) bool {
 // 加载配置
 func LoadConfig() *Config {
 
-	flag.Parse()
+	if !flag.Parsed() {
+		flag.Parse()
+	}
 
 	//1.读取配置文件，如果和1中的有重叠，则覆盖
 	if pathExists(*configFile) {
