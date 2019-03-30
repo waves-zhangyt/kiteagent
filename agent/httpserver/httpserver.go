@@ -2,7 +2,7 @@ package httpserver
 
 import (
 	"github.com/waves-zhangyt/kiteagent/agent/conf"
-	"github.com/waves-zhangyt/kiteagent/agent/util"
+	"github.com/waves-zhangyt/kiteagent/agent/util/logs"
 	"io"
 	"log"
 	"net/http"
@@ -19,7 +19,7 @@ func InitServer() {
 			io.WriteString(writer, Version)
 		})
 		hostAndPort := ":" + strconv.Itoa(conf.DefaultConfig.HttpServerPort)
-		util.Info.Printf("本地http监听: %s\n", hostAndPort)
+		logs.Info("本地http监听: %s", hostAndPort)
 		log.Fatal(http.ListenAndServe(hostAndPort, nil))
 	}()
 }

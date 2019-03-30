@@ -3,6 +3,8 @@
 
 /*
    util包中的日志工具
+
+   deprecated 20190330 周六 使用logs/logs.go中功能替代，这个不再推荐使用
 */
 package util
 

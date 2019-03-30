@@ -11,7 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/waves-zhangyt/kiteagent/agent/cmd"
-	"github.com/waves-zhangyt/kiteagent/agent/util"
+	"github.com/waves-zhangyt/kiteagent/agent/util/logs"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -35,7 +35,7 @@ func DoHttpProxy(command *cmd.Cmd) *cmd.CmdResult {
 	body := command.Body
 	var request Request
 	if json.Unmarshal([]byte(body), &request) != nil {
-		util.Error.Println("解析请求参数出错")
+		logs.Error("解析请求参数出错")
 		cmdResult.Stderr = "解析请求参数出错"
 		return &cmdResult
 	}
@@ -118,7 +118,7 @@ func UniRequest(method, url string, headers *map[string]string, body []byte, tim
 
 	req, err := http.NewRequest(method, url, buf)
 	if err != nil {
-		util.Error.Println(err)
+		logs.Error(err)
 		return "", []string{"", ""}, nil, err.Error()
 	}
 
@@ -135,7 +135,7 @@ func UniRequest(method, url string, headers *map[string]string, body []byte, tim
 		}
 	}()
 	if err2 != nil {
-		util.Error.Printf("http 请求错误 %s\n", err2)
+		logs.Error("http 请求错误 %s", err2)
 		return "", []string{"", ""}, nil, err2.Error()
 	}
 
@@ -149,7 +149,7 @@ func UniRequest(method, url string, headers *map[string]string, body []byte, tim
 	//打印返回的body信息
 	body, err1 := ioutil.ReadAll(resp.Body)
 	if err1 != nil {
-		util.Error.Println(err1)
+		logs.Error(err1)
 		return head, []string{contentType, contentEncoding}, nil, ""
 	}
 

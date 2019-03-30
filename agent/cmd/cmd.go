@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/waves-zhangyt/kiteagent/agent/util"
+	"github.com/waves-zhangyt/kiteagent/agent/util/logs"
 	"os/exec"
 	"runtime"
 	"time"
@@ -82,7 +83,7 @@ func CommandRun(cmd *Cmd) *CmdResult {
 		//此种错误也输出到标准错误输出
 		errMsg := fmt.Sprintf("%s", err)
 		cmdResult.Stderr = errMsg
-		util.Error.Println(errMsg)
+		logs.Error(errMsg)
 	}
 
 	cmdResult.Stdout = stringWithPlatform(stdout.Bytes())

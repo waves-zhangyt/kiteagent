@@ -8,7 +8,7 @@ package conf
 
 import (
 	"flag"
-	"github.com/waves-zhangyt/kiteagent/agent/util"
+	"github.com/waves-zhangyt/kiteagent/agent/util/logs"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
@@ -57,7 +57,7 @@ func LoadConfig() *Config {
 			panic(err)
 		}
 		if err := yaml.Unmarshal(data, &DefaultConfig); err != nil {
-			util.Info.Printf("yaml unmarshaling failed: %s", err)
+			logs.Info("yaml unmarshaling failed: %s", err)
 		}
 	}
 
@@ -78,7 +78,7 @@ func LoadConfig() *Config {
 	}
 
 	rdata, _ := yaml.Marshal(DefaultConfig)
-	util.Info.Printf("当前应用配置信息\n-------\n%s-------~\n", string(rdata))
+	logs.Info("当前应用配置信息\n-------\n%s-------~", string(rdata))
 
 	return &DefaultConfig
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/waves-zhangyt/kiteagent/agent/httpproxy"
 	"github.com/waves-zhangyt/kiteagent/agent/httpserver"
 	"github.com/waves-zhangyt/kiteagent/agent/util"
+	"github.com/waves-zhangyt/kiteagent/agent/util/logs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -36,6 +37,11 @@ func askVersion() bool {
 }
 
 var done = make(chan struct{})
+
+// max try connect count 次数
+const MaxTryConnectCount = 17280
+
+var maxTryConnectCount = 0
 
 // 异步队列，最多1000个累积
 var asynCmdResultChannel = make(chan *cmd.CmdResult, 1000)
@@ -76,13 +82,13 @@ func main() {
 		case <-done:
 			return
 		case <-interrupt: //终结客户端后，发送关闭连接信息给服务端
-			util.Info.Println("interrupt")
+			logs.Info("interrupt")
 			// Cleanly close the connection by sending a close message and then
 			// waiting (with timeout) for the server to close the connection.
 			if conn[0] != nil {
 				err := conn[0].WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 				if err != nil {
-					util.Info.Println("write close:", err)
+					logs.Info("write close:", err)
 					return
 				}
 			}
@@ -100,8 +106,14 @@ func connect(conn []*websocket.Conn) {
 	//拨号
 	defer func() {
 		if e := recover(); e != nil {
-			util.Error.Printf("Panicing %s\n", e)
-			util.Info.Printf("等待5秒重新尝试连接")
+			maxTryConnectCount++
+			if maxTryConnectCount >= MaxTryConnectCount {
+				logs.Error("重试连接次数超标，程序结束")
+				os.Exit(1)
+			}
+
+			logs.Error("Panicing %s", e)
+			logs.Info("等待5秒重新尝试连接")
 			time.Sleep(5 * time.Second)
 			connect(conn)
 		}
@@ -121,6 +133,8 @@ func connect(conn []*websocket.Conn) {
 	if err != nil {
 		msg := fmt.Sprintf("拨号失败: %s", err)
 		panic(msg)
+	} else {
+		maxTryConnectCount = 0
 	}
 }
 
@@ -146,8 +160,14 @@ func startWssClient(conn []*websocket.Conn) {
 	go func() {
 		defer func() {
 			if e := recover(); e != nil {
-				util.Error.Printf("Panicing %s\n", e)
-				util.Info.Printf("等待5秒重新尝试重新连接和读取")
+				maxTryConnectCount++
+				if maxTryConnectCount >= MaxTryConnectCount {
+					logs.Error("重试连接次数超标，程序结束")
+					os.Exit(1)
+				}
+
+				logs.Error("Panicing %s", e)
+				logs.Info("等待5秒重新尝试重新连接和读取")
 				time.Sleep(5 * time.Second)
 				startWssClient(conn)
 			}
@@ -164,30 +184,34 @@ func startWssClient(conn []*websocket.Conn) {
 			if err != nil {
 				errMsg := fmt.Sprintf("%s", err)
 				if strings.Contains(errMsg, "close 1000 (normal)") {
-					util.Info.Println("正常退出")
+					logs.Info("正常退出")
 					close(done)
 					conn[0] = nil
 					return
 				}
 
-				util.Error.Println("read:", err)
+				logs.Error("read:", err)
 				msg := fmt.Sprintf("读取错误 %s", err)
 				conn[0] = nil
 				panic(msg)
+			} else {
+				if maxTryConnectCount != 0 {
+					maxTryConnectCount = 0
+				}
 			}
 			//异步执行
 			go func() {
 				cmdResult := Dispatch(&v)
 
 				if cmdResult != nil {
-					util.Debug.Printf("发送信息: %s", cmdResult)
+					logs.Debug("发送信息: %s", cmdResult)
 				}
 
 				if cmdResult == nil {
 					//do nothing
 				} else if v.Head.Async == 0 { // 同步消息
 					if conn[0].WriteJSON(cmdResult) != nil {
-						util.Error.Println("发送结果消息失败")
+						logs.Error("发送结果消息失败")
 					}
 				} else if v.Head.Async == 1 { // 异步消息
 					//标志返回结果是异步的
@@ -206,7 +230,7 @@ func asyncCmdResult(conn []*websocket.Conn) {
 		if cmdResult != nil {
 			err := conn[0].WriteJSON(cmdResult)
 			if err != nil {
-				util.Error.Printf("写消息给客户端失败,重新压入原队列 %v", cmdResult)
+				logs.Error("写消息给客户端失败,重新压入原队列 %v", cmdResult)
 				//发现错误从新返回队列
 				asynCmdResultChannel <- cmdResult
 			}
@@ -225,7 +249,7 @@ func intervalPing(conn []*websocket.Conn) {
 			}
 			err := conn[0].WriteJSON(reqPing)
 			if err != nil {
-				util.Error.Printf("心跳检测失败: %s\n", err)
+				logs.Error("心跳检测失败: %s", err)
 			}
 		}
 		//每隔一分钟一次心跳
@@ -236,7 +260,7 @@ func intervalPing(conn []*websocket.Conn) {
 //命令分发
 func Dispatch(command *cmd.Cmd) *cmd.CmdResult {
 	text, _ := json.Marshal(command)
-	util.Debug.Printf("收到信息：%s", text)
+	logs.Debug("收到信息：%s", text)
 
 	cmdType := command.Head.Type
 
@@ -250,7 +274,7 @@ func Dispatch(command *cmd.Cmd) *cmd.CmdResult {
 	case cmd.ProxyHttp:
 		return httpproxy.DoHttpProxy(command)
 	default:
-		util.Info.Printf("不支持\"%s\"类型命令\n", cmdType)
+		logs.Info("不支持\"%s\"类型命令", cmdType)
 		return nil
 	}
 }
