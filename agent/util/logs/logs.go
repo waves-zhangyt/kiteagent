@@ -8,8 +8,10 @@ package logs
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -55,40 +57,66 @@ func getSourcePrefix() string {
 
 func Debug(v ...interface{}) {
 	if *logLevel == "debug" {
-		if len(v) > 1 {
-			debug.Printf(getSourcePrefix()+v[0].(string)+"\n", v[1:]...)
-		} else {
-			debug.Printf(getSourcePrefix() + v[0].(string) + "\n")
-		}
+		print(debug, &v)
 	}
 }
 
 func Info(v ...interface{}) {
 	if *logLevel == "info" || *logLevel == "debug" {
-		if len(v) > 1 {
-			info.Printf(getSourcePrefix()+v[0].(string)+"\n", v[1:]...)
-		} else {
-			info.Printf(getSourcePrefix() + v[0].(string) + "\n")
-		}
+		print(info, &v)
 	}
 }
 
 func Warn(v ...interface{}) {
 	if *logLevel == "info" || *logLevel == "warn" || *logLevel == "debug" {
-		if len(v) > 1 {
-			warn.Printf(getSourcePrefix()+v[0].(string)+"\n", v[1:]...)
-		} else {
-			warn.Printf(getSourcePrefix() + v[0].(string) + "\n")
-		}
-
+		print(warn, &v)
 	}
 }
 
 func Error(v ...interface{}) {
-	if len(v) > 1 {
-		error.Printf(getSourcePrefix()+v[0].(string)+"\n", v[1:]...)
-	} else {
-		error.Printf(getSourcePrefix() + v[0].(string) + "\n")
+	print(error, &v)
+}
+
+// 统一打印格式
+func print(logger *log.Logger, v interface{}) {
+	vv := v.(*[]interface{})
+
+	l := len(*vv)
+	if l == 0 {
+		logger.Println(getSourcePrefix())
 	}
 
+	if l > 1 {
+		need, format := genFormat(vv)
+		if need {
+			logger.Printf(getSourcePrefix()+format+"\n", (*vv)[0:]...)
+		} else {
+			logger.Printf(getSourcePrefix()+fmt.Sprintf("%v", (*vv)[0])+"\n", (*vv)[1:]...)
+		}
+
+	} else {
+		logger.Printf(getSourcePrefix() + fmt.Sprintf("%v", (*vv)[0]) + "\n")
+	}
+}
+
+// 生成没有格式化字符串情况下的格式字符串
+// 如果守参数是字符串，则默认为是格式字符串，不用生成
+// 返回 (是否需要生成，生成的格式字符串)
+func genFormat(v interface{}) (bool, string) {
+	vv := v.(*[]interface{})
+
+	if reflect.TypeOf((*vv)[0]).Name() != "string" {
+		l := len(*vv)
+		var builder strings.Builder
+
+		for i := 0; i < l; i++ {
+			builder.WriteString("%v")
+			if i < l-1 {
+				builder.WriteString(" ")
+			}
+		}
+		return true, builder.String()
+	}
+
+	return false, ""
 }

@@ -49,8 +49,9 @@ func DoHttpProxy(command *cmd.Cmd) *cmd.CmdResult {
 	}
 
 	//执行代理请求
-	respHeaders, contextTypeHeadItems, respBody, errMsg := UniRequest(request.Method, request.Url, request.Headers, bodyData, timeout)
+	responseCode, respHeaders, contextTypeHeadItems, respBody, errMsg := UniRequestWithResponseCode(request.Method, request.Url, request.Headers, bodyData, timeout)
 	var response Response
+	response.ResponseCode = responseCode
 	response.Headers = respHeaders
 	response.ContentType = contextTypeHeadItems[0]
 	contentType := contextTypeHeadItems[0]
@@ -80,9 +81,10 @@ func DoHttpProxy(command *cmd.Cmd) *cmd.CmdResult {
 }
 
 type Response struct {
-	Headers     string `json:"headers"`
-	Body        string `json:"body"`
-	ContentType string `json:"contentType"`
+	ResponseCode int    `json:"responseCode"`
+	Headers      string `json:"headers"`
+	Body         string `json:"body"`
+	ContentType  string `json:"contentType"`
 }
 
 // request请求数据结构（cmd.body）
@@ -97,6 +99,13 @@ type Request struct {
 
 // 通用http请求 返回 （头信息的json字符串，[Content-Type, Content-Encoding]，body内容, err字符串）
 func UniRequest(method, url string, headers *map[string]string, body []byte, timeout int) (string, []string, []byte,
+	string) {
+	_, header, headerContentType, body, err := UniRequestWithResponseCode(method, url, headers, body, timeout)
+	return header, headerContentType, body, err
+}
+
+// 通用http请求 返回 （statusCode, 头信息的json字符串，[Content-Type, Content-Encoding]，body内容, err字符串）
+func UniRequestWithResponseCode(method, url string, headers *map[string]string, body []byte, timeout int) (int, string, []string, []byte,
 	string) {
 
 	var client *http.Client
@@ -119,7 +128,7 @@ func UniRequest(method, url string, headers *map[string]string, body []byte, tim
 	req, err := http.NewRequest(method, url, buf)
 	if err != nil {
 		logs.Error(err)
-		return "", []string{"", ""}, nil, err.Error()
+		return 500, "", []string{"", ""}, nil, err.Error()
 	}
 
 	if headers != nil {
@@ -135,8 +144,8 @@ func UniRequest(method, url string, headers *map[string]string, body []byte, tim
 		}
 	}()
 	if err2 != nil {
-		logs.Error("http 请求错误 %s", err2)
-		return "", []string{"", ""}, nil, err2.Error()
+		logs.Error("http 请求错误 %s\n", err2)
+		return 500, "", []string{"", ""}, nil, err2.Error()
 	}
 
 	//打印返回的头信息
@@ -150,8 +159,8 @@ func UniRequest(method, url string, headers *map[string]string, body []byte, tim
 	body, err1 := ioutil.ReadAll(resp.Body)
 	if err1 != nil {
 		logs.Error(err1)
-		return head, []string{contentType, contentEncoding}, nil, ""
+		return 500, head, []string{contentType, contentEncoding}, nil, ""
 	}
 
-	return head, []string{contentType, contentEncoding}, body, ""
+	return resp.StatusCode, head, []string{contentType, contentEncoding}, body, ""
 }
