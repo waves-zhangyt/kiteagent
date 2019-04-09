@@ -9,7 +9,7 @@ import (
 	"strconv"
 )
 
-var Version string = "v0.6.0"
+var Version string = "v0.6.1"
 
 func InitServer() {
 	go func() {
