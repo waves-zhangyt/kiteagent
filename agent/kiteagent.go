@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/waves-zhangyt/kiteagent/agent/cmd"
 	"github.com/waves-zhangyt/kiteagent/agent/conf"
+	"github.com/waves-zhangyt/kiteagent/agent/fork"
 	"github.com/waves-zhangyt/kiteagent/agent/httpproxy"
 	"github.com/waves-zhangyt/kiteagent/agent/httpserver"
 	"github.com/waves-zhangyt/kiteagent/agent/util"
@@ -24,6 +25,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -49,7 +51,9 @@ var asynCmdResultChannel = make(chan *cmd.CmdResult, 1000)
 func main() {
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	flag.Parse()
+	if !flag.Parsed() {
+		flag.Parse()
+	}
 
 	// 版本命令执行
 	if askVersion() {
@@ -58,6 +62,11 @@ func main() {
 
 	// 加载配置文件
 	conf.LoadConfig()
+
+	// when start with daemon process
+	if fork.Daemon() {
+		return
+	}
 
 	// 初始化内置http服务
 	httpserver.InitServer()
@@ -75,7 +84,7 @@ func main() {
 
 	//结束客户端执行入口
 	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	for {
 		select {
@@ -143,7 +152,7 @@ func createTLSConfig() *tls.Config {
 	caCertPath := conf.DefaultConfig.TlsPublicKey
 	caCrt, err := ioutil.ReadFile(caCertPath)
 	if err != nil {
-		fmt.Println("ReadFile err:", err)
+		logs.Error("ReadFile err:", err)
 		panic(err)
 	}
 	pool.AppendCertsFromPEM(caCrt)
