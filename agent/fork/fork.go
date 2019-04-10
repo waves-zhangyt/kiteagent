@@ -47,6 +47,7 @@ func Daemon() bool {
 			select {
 			case <-interrupt:
 				logs.Info("parent process interrupted normally")
+				// note: undo, when in windows normal shut parent process, the child process killed failed
 				killChildProcess()
 				return true
 			}
