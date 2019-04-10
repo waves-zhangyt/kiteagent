@@ -30,19 +30,11 @@ var daemon = flag.Bool("daemon", false, "if start with a daemon process")
 var logFile = flag.String("logFile", "kiteagent.log", "log file path when start with -daemon")
 var healthErrCnt int
 
-var workProcessLogFile *os.File
-
 // check if has -daemon parameter and fork a process when it's true
 func Daemon() bool {
 
-	// when run in background by the init in background.go
-	if *background {
-		return true
-	}
-
 	// run daemon
 	if *daemon {
-
 		// fork the work process
 		fork()
 
@@ -79,7 +71,6 @@ func healthCheck() {
 
 		if healthErrCnt >= 3 {
 			logs.Warn("check child process unhealthy, start a new one")
-			workProcessLogFile.Close()
 			killChildProcess()
 			fork()
 		}
@@ -118,6 +109,11 @@ func fork() {
 			logs.Error("open log file error %v", err)
 		}
 	}
+	defer func() {
+		if err := outFile.Close(); err != nil {
+			logs.Error("close log file err: %v", err)
+		}
+	}()
 	cmd.Stdout = outFile
 	cmd.Stderr = outFile
 	if err := cmd.Start(); err != nil {
@@ -135,7 +131,11 @@ func fork() {
 
 //kill the child process
 func killChildProcess() {
-	cmd.Process.Kill()
+	if cmd != nil && cmd.Process != nil {
+		if err := cmd.Process.Kill(); err != nil {
+			logs.Warn("kill child process err %v", err)
+		}
+	}
 	/* option method
 	if runtime.GOOS == "windows" {
 		//todo need test in windows environment

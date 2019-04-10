@@ -63,7 +63,7 @@ func main() {
 	// 加载配置文件
 	conf.LoadConfig()
 
-	// when start with daemon process
+	// if start with daemon process
 	if fork.Daemon() {
 		return
 	}
