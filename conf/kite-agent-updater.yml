@@ -1,0 +1,17 @@
+#严重注意，目前的版本使用规则大于配置的原则，kiteagent的命令启动必须在kiteagent所在的目录下
+#本kiteagent-updater启动也必须在本程序所在目录下
+#kitemanager的update/*接口系列部署一旦确定下来，不能轻易改变，否则需要更新配置选项。
+#同时，为了防止机器重启导致
+
+#标志是否启用
+enabled: true
+
+#心跳时间
+checkIntervalSeconds: 90
+
+#获取新版本的IP地址
+latestAgentVersionUrl: "http://localhost:8899/kite/update/latestAgentVersion"
+latestAgentUrl: "http://localhost:8899/kite/update/latestAgent"
+
+#用于更新配置的方式，可通过kiteagent指令执行，更新该配置
+updateReloadPort: 19989

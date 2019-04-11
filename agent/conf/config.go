@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"sync"
 )
 
 // 基本配置结构
@@ -24,6 +25,8 @@ type Config struct {
 
 // 默认配置变量
 var DefaultConfig Config
+var configLoaded bool
+var configLoadedMu sync.Mutex
 
 var agentId = flag.String("a", "", "agentId")
 var wssUrl = flag.String("m", "", "wssUrl")
@@ -41,6 +44,17 @@ func pathExists(path string) bool {
 	}
 
 	return false
+}
+
+// load config multi goruntine safe
+func SyncLoadConfig() {
+	configLoadedMu.Lock()
+	defer configLoadedMu.Unlock()
+
+	if !configLoaded {
+		LoadConfig()
+		configLoaded = true
+	}
 }
 
 // 加载配置

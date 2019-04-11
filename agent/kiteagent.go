@@ -61,7 +61,7 @@ func main() {
 	}
 
 	// 加载配置文件
-	conf.LoadConfig()
+	conf.SyncLoadConfig()
 
 	// if start with daemon process
 	if fork.Daemon() {

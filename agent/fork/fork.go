@@ -63,6 +63,11 @@ func healthCheck() {
 	for {
 		time.Sleep(5 * time.Second)
 
+		if IsUpdating() {
+			logs.Info("health check jumped for updating")
+			continue
+		}
+
 		version := httpGet("http://127.0.0.1:" + strconv.Itoa(conf.DefaultConfig.HttpServerPort) + "/version")
 		if !isActive(string(version)) {
 			healthErrCnt++
