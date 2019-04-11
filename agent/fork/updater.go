@@ -47,6 +47,9 @@ func InitConfig() {
 // check need update and execute update
 func checkUpdate() {
 	for {
+		interval := time.Duration(DefaultUpdateConfig.CheckIntervalSeconds)
+		time.Sleep(interval * time.Second)
+
 		if DefaultUpdateConfig.Enabled {
 			conf.SyncLoadConfig()
 
@@ -60,14 +63,12 @@ func checkUpdate() {
 				update()
 			}
 		}
-
-		interval := time.Duration(DefaultUpdateConfig.CheckIntervalSeconds)
-		time.Sleep(interval * time.Second)
 	}
 }
 
 func needUpdate(version, managerVersion string) bool {
-	if !strings.HasPrefix(managerVersion, "v") {
+	//when can't get the version info or not a version info from the endpoint
+	if !strings.HasPrefix(managerVersion, "v") || !strings.HasPrefix(version, "v") {
 		return false
 	}
 
