@@ -199,7 +199,7 @@ func startWssClient(conn []*websocket.Conn) {
 					return
 				}
 
-				logs.Error("read:", err)
+				logs.Error("read: %v", err)
 				msg := fmt.Sprintf("读取错误 %s", err)
 				conn[0] = nil
 				panic(msg)
