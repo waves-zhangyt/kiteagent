@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -40,6 +41,9 @@ func Daemon() bool {
 
 		go healthCheck()
 
+		// logfile cutter when worker process log file is to large, now the threshold is 512M
+		go logFileCutterCheck(*logFile)
+
 		//terminate entrance for the parent process
 		interrupt := make(chan os.Signal, 1)
 		signal.Notify(interrupt, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -55,6 +59,41 @@ func Daemon() bool {
 	}
 
 	return false
+}
+
+// log file cutter check
+// may optimize later
+func logFileCutterCheck(logFile string) {
+
+	for {
+		time.Sleep(5 * time.Minute)
+
+		fileSize := getFileSize(logFile)
+		if fileSize >= 1024*1024*512 {
+			cutCmd := "echo '' > " + logFile
+			var theCmd *exec.Cmd
+			if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+				theCmd = exec.Command("bash", "-c", cutCmd)
+			} else {
+				theCmd = exec.Command("cmd", "/c", cutCmd)
+			}
+
+			err := theCmd.Run()
+			if err != nil {
+				logs.Error("cut the logfile %v err %v", logFile, err)
+			}
+		}
+	}
+
+}
+
+// get file size
+func getFileSize(fileName string) int64 {
+	fi, err := os.Lstat(fileName)
+	if err != nil {
+		logs.Error("get the file %v info err %v", fileName, err)
+	}
+	return fi.Size()
 }
 
 // health check every 5 seconds
