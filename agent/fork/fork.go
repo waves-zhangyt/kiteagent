@@ -28,6 +28,7 @@ var childPid int
 // daemon provide a master process to monitor the work process. if you want run app in backgroud use nohup in *linux or
 // start /b in windows or use other methods you familiar with
 var daemon = flag.Bool("daemon", false, "if start with a daemon process")
+var daemonDetail = flag.Bool("daemonDetail", false, "print daemon log detail")
 var logFile = flag.String("logFile", "kiteagent.log", "log file path when start with -daemon")
 var healthErrCnt int
 
@@ -100,7 +101,7 @@ func getFileSize(fileName string) int64 {
 // if err count >= 3 times, fork a new child process
 func healthCheck() {
 	for {
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 
 		if IsUpdating() {
 			logs.Info("health check jumped for updating")
@@ -115,7 +116,10 @@ func healthCheck() {
 		}
 
 		if healthErrCnt >= 3 {
-			logs.Warn("check child process unhealthy, start a new one")
+			healthErrCnt = 0
+			if *daemonDetail {
+				logs.Warn("check child process unhealthy, start a new one")
+			}
 			killChildProcess()
 			fork()
 		}
@@ -143,7 +147,9 @@ func fork() {
 		}
 	}
 
-	logs.Info("fork process cmd is %s", os.Args[0])
+	if *daemonDetail {
+		logs.Info("fork process cmd is %s", os.Args[0])
+	}
 	cmd = exec.Command(os.Args[0], args...)
 	// forked process log
 	outFile, err := os.OpenFile(*logFile, os.O_RDWR|os.O_APPEND, 0)
@@ -162,7 +168,9 @@ func fork() {
 	cmd.Stdout = outFile
 	cmd.Stderr = outFile
 	if err := cmd.Start(); err != nil {
-		logs.Error("fork new process err", err)
+		if *daemonDetail {
+			logs.Error("fork new process err", err)
+		}
 	}
 	childPid = cmd.Process.Pid
 
@@ -171,14 +179,18 @@ func fork() {
 		cmd.Wait()
 	}()
 
-	logs.Info("forked pid is %s", strconv.Itoa(childPid))
+	if *daemonDetail {
+		logs.Info("forked pid is %s", strconv.Itoa(childPid))
+	}
 }
 
 //kill the child process
 func killChildProcess() {
 	if cmd != nil && cmd.Process != nil {
 		if err := cmd.Process.Kill(); err != nil {
-			logs.Warn("kill child process err %v", err)
+			if *daemonDetail {
+				logs.Warn("kill child process err %v", err)
+			}
 		}
 	}
 	/* option method
@@ -205,7 +217,9 @@ func killChildProcess() {
 func httpGet(url string) []byte {
 	resp, err := http.Get(url)
 	if err != nil {
-		logs.Error("fetch: %v", err)
+		if *daemonDetail {
+			logs.Error("fetch: %v", err)
+		}
 		return []byte(err.Error())
 	}
 
