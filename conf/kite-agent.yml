@@ -10,3 +10,6 @@ tlsPublicKey: conf/public_key.der
 
 #内置 http server port
 httpServerPort: 19988
+
+# the kite manger secret token when kite manager connectionAuthEnabled is true
+#connectionSecret: hellokitemanager

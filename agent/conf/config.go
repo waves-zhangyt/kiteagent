@@ -17,10 +17,11 @@ import (
 
 // 基本配置结构
 type Config struct {
-	AgentId        string `json:"agentId" yaml:"agentId"`               //客户端唯一标志
-	WssUrl         string `json:"wssUrl" yaml:"wssUrl"`                 //连接服务端url
-	TlsPublicKey   string `json:"tlsPublicKey" yaml:"tlsPublicKey"`     //tls 自签名证书文件路径
-	HttpServerPort int    `json:"httpServerPort" yaml:"httpServerPort"` //内置http服务端口
+	AgentId          string `json:"agentId" yaml:"agentId"`                   //客户端唯一标志
+	WssUrl           string `json:"wssUrl" yaml:"wssUrl"`                     //连接服务端url
+	TlsPublicKey     string `json:"tlsPublicKey" yaml:"tlsPublicKey"`         //tls 自签名证书文件路径
+	HttpServerPort   int    `json:"httpServerPort" yaml:"httpServerPort"`     //内置http服务端口
+	ConnectionSecret string `json:"connectionSecret" yaml:"connectionSecret"` //when kite manager connection auth enabled, this is the secret token.
 }
 
 // 默认配置变量
@@ -32,6 +33,8 @@ var agentId = flag.String("a", "", "agentId")
 var wssUrl = flag.String("m", "", "wssUrl")
 var configFile = flag.String("c", "conf/kite-agent.yml", "kite-agent.yml file path") //默认相对路径
 var tlsPublicKey = flag.String("tls", "", "tls public key file path")
+var connectionSecret = flag.String("connectionSecret", "",
+	"when kite manager connection auth enabled, this is the secret token")
 
 // 判断路径是否存在
 func pathExists(path string) bool {
@@ -84,6 +87,9 @@ func LoadConfig() *Config {
 	}
 	if *tlsPublicKey != "" {
 		DefaultConfig.TlsPublicKey = *tlsPublicKey
+	}
+	if *connectionSecret != "" {
+		DefaultConfig.ConnectionSecret = *connectionSecret
 	}
 
 	//3.未设置部分有些从操作系统获取

@@ -136,7 +136,8 @@ func connect(conn []*websocket.Conn) {
 		TLSClientConfig: createTLSConfig(), // tls 设置
 	}
 
-	url := conf.DefaultConfig.WssUrl + "?clientId=" + conf.DefaultConfig.AgentId + "&ipv4=" + util.LocalIPv4Addr()
+	url := conf.DefaultConfig.WssUrl + "?clientId=" + conf.DefaultConfig.AgentId + "&ipv4=" + util.LocalIPv4Addr() +
+		"&connectionSecret=" + conf.DefaultConfig.ConnectionSecret
 	connItem, _, err := dialer.Dial(url, nil)
 	conn[0] = connItem
 	if err != nil {
