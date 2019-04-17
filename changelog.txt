@@ -1,3 +1,9 @@
+v0.7.0-alpha
+1.add the daemon, background run schema, and updater
+2.optimize log
+3.add connection auth support
+4.add log cutter when use daemon schema process running and so on
+
 0.5.0-alpha
 1.调整日志方式和级别控制
 2.增加updater版本服务
