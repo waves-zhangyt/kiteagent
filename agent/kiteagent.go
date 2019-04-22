@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -220,13 +221,13 @@ func startWssClient(conn []*websocket.Conn) {
 				if cmdResult == nil {
 					//do nothing
 				} else if v.Head.Async == 0 { // 同步消息
-					if conn[0].WriteJSON(cmdResult) != nil {
+					if syncWriteJSon(conn[0], cmdResult) != nil {
 						logs.Error("发送结果消息失败")
 					}
 				} else if v.Head.Async == 1 { // 异步消息
 					//标志返回结果是异步的
 					cmdResult.Async = 1
-					//压如队列等待读取
+					//压入队列等待读取
 					asynCmdResultChannel <- cmdResult
 				}
 			}()
@@ -238,7 +239,7 @@ func asyncCmdResult(conn []*websocket.Conn) {
 	for {
 		cmdResult := <-asynCmdResultChannel
 		if cmdResult != nil {
-			err := conn[0].WriteJSON(cmdResult)
+			err := syncWriteJSon(conn[0], cmdResult)
 			if err != nil {
 				logs.Error("写消息给客户端失败,重新压入原队列 %v", cmdResult)
 				//发现错误从新返回队列
@@ -257,7 +258,7 @@ func intervalPing(conn []*websocket.Conn) {
 				Type:   cmd.Req_ping,
 				Stdout: "ping",
 			}
-			err := conn[0].WriteJSON(reqPing)
+			err := syncWriteJSon(conn[0], reqPing)
 			if err != nil {
 				logs.Error("心跳检测失败: %s", err)
 			}
@@ -287,4 +288,14 @@ func Dispatch(command *cmd.Cmd) *cmd.CmdResult {
 		logs.Info("不支持\"%s\"类型命令", cmdType)
 		return nil
 	}
+}
+
+// the websocket write mutex
+var connWriteMutex sync.Mutex
+
+// sync write for gorilla websocket
+func syncWriteJSon(conn *websocket.Conn, v interface{}) error {
+	connWriteMutex.Lock()
+	defer connWriteMutex.Unlock()
+	return conn.WriteJSON(v)
 }
