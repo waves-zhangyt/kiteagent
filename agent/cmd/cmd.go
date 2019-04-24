@@ -44,7 +44,8 @@ type CmdResult struct {
 func (cmdResult *CmdResult) String() string {
 	data, err := json.Marshal(cmdResult)
 	if err != nil {
-		return fmt.Sprint(cmdResult)
+		logs.Error(err)
+		return err.Error()
 	}
 	return string(data)
 }

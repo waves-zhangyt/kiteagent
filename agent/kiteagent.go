@@ -218,6 +218,16 @@ func startWssClient(conn []*websocket.Conn) {
 					logs.Debug("发送信息: %s", cmdResult)
 				}
 
+				// check if the result data is to large
+				if IsOutOfMaxThreshold(cmdResult) {
+					errMessage := "cmd result is to large, omit"
+					logs.Error(errMessage)
+					cmdResult.Stdout = ""
+					cmdResult.Stderr = errMessage
+					syncWriteJSon(conn[0], cmdResult)
+					return
+				}
+
 				if cmdResult == nil {
 					//do nothing
 				} else if v.Head.Async == 0 { // 同步消息
@@ -284,6 +294,8 @@ func Dispatch(command *cmd.Cmd) *cmd.CmdResult {
 		return cmd.CommandRun(command)
 	case cmd.ProxyHttp:
 		return httpproxy.DoHttpProxy(command)
+	case cmd.CmdSmallFileReceive:
+		return cmd.ReceiveSmallFile(command)
 	default:
 		logs.Info("不支持\"%s\"类型命令", cmdType)
 		return nil
@@ -298,4 +310,15 @@ func syncWriteJSon(conn *websocket.Conn, v interface{}) error {
 	connWriteMutex.Lock()
 	defer connWriteMutex.Unlock()
 	return conn.WriteJSON(v)
+}
+
+const maxResultData = 1024 * 1024 * 128
+
+// check the data properties length
+func IsOutOfMaxThreshold(result *cmd.CmdResult) bool {
+	if result == nil {
+		return false
+	}
+
+	return (len(result.Stdout) + len(result.Stderr)) > maxResultData
 }

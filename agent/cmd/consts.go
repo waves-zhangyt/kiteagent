@@ -20,3 +20,7 @@ const CmdRun = "cmd.run"
 
 // http proxy
 const ProxyHttp = "proxy.http"
+
+// small file receive
+// kite manager can transfer a small file like config file to the target kite agent host
+const CmdSmallFileReceive = "cmd.smallFileReceive"

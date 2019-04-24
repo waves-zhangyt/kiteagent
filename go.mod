@@ -3,7 +3,7 @@ module github.com/waves-zhangyt/kiteagent
 go 1.12
 
 require (
-	github.com/gorilla/websocket v1.4.0 // indirect
+	github.com/gorilla/websocket v1.4.0
 	golang.org/x/text v0.0.0
 	gopkg.in/yaml.v2 v2.2.2
 )
