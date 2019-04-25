@@ -1,6 +1,7 @@
 v0.8.0-alpha
 1.add the cmd result data length protection, the max data(stderr + stdout) is 128MB
-2.add the cmd.smallFileReceive function
+2.add the cmd.smallFileReceive function. it can transfer a small file to the target agent host,
+and also can read a exist file in target agent host for the kitemanger
 
 v0.7.0-alpha
 1.add the daemon, background run schema, and updater

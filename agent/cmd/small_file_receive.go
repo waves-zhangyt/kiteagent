@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/waves-zhangyt/kiteagent/agent/util/logs"
+	"io/ioutil"
 	"os"
 )
 
@@ -29,36 +30,50 @@ func ReceiveSmallFile(command *Cmd) *CmdResult {
 		return &cmdResult
 	}
 
-	// write the file
-	var payloadBytes []byte
-	var err error
-	if smallFileData.Payload != "" {
-
+	if smallFileData.ReadExisted { //read the file
+		fileBytes, err := ioutil.ReadFile(smallFileData.TargetPath)
+		if err != nil {
+			errorMessage(&cmdResult, "read target file error: %v", err)
+			return &cmdResult
+		}
 		if smallFileData.PayloadType == "base64" {
-			payloadBytes, err = base64.StdEncoding.DecodeString(smallFileData.Payload)
+			cmdResult.Stdout = base64.StdEncoding.EncodeToString(fileBytes)
+		} else {
+			cmdResult.Stdout = string(fileBytes)
+		}
+	} else { // write the file
+
+		var payloadBytes []byte
+		var err error
+		if smallFileData.Payload != "" {
+
+			if smallFileData.PayloadType == "base64" {
+				payloadBytes, err = base64.StdEncoding.DecodeString(smallFileData.Payload)
+				if err != nil {
+					errorMessage(&cmdResult, "decode the file payload failed: %v", err)
+					return &cmdResult
+				}
+			} else {
+				payloadBytes = []byte(smallFileData.Payload)
+			}
+
+			outFile, err := os.Create(smallFileData.TargetPath)
 			if err != nil {
 				errorMessage(&cmdResult, "decode the file payload failed: %v", err)
 				return &cmdResult
 			}
-		} else {
-			payloadBytes = []byte(smallFileData.Payload)
+			defer outFile.Close()
+
+			n, err := outFile.Write(payloadBytes)
+			if err != nil {
+				errorMessage(&cmdResult, "write data to the target file failed: %v", err)
+				return &cmdResult
+			}
+			logs.Debug("%v bytes write to file %v", n, smallFileData.TargetPath)
+
+			cmdResult.Stdout = "ok"
 		}
 
-		outFile, err := os.Create(smallFileData.TargetPath)
-		if err != nil {
-			errorMessage(&cmdResult, "decode the file payload failed: %v", err)
-			return &cmdResult
-		}
-		defer outFile.Close()
-
-		n, err := outFile.Write(payloadBytes)
-		if err != nil {
-			errorMessage(&cmdResult, "write data to the target file failed: %v", err)
-			return &cmdResult
-		}
-		logs.Debug("%v bytes write to file %v", n, smallFileData.TargetPath)
-
-		cmdResult.Stdout = "ok"
 	}
 
 	return &cmdResult
@@ -73,6 +88,7 @@ func errorMessage(cmdResult *CmdResult, msg string, err error) {
 
 type SmallFileData struct {
 	TargetPath  string `json:"targetPath"`            // the target path
-	PayloadType string `json:"payloadType,omitempty"` //normal string or base64
-	Payload     string `json:"payload"`               // the real data in file, base64Encoded
+	PayloadType string `json:"payloadType,omitempty"` // normal "string" or "base64"
+	Payload     string `json:"payload,omitempty"`     // the real data in file, base64Encoded
+	ReadExisted bool   `json:"readExisted,omitempty"` // when this is true, the agent read the TargetPath file and transfer content to the kite manager
 }

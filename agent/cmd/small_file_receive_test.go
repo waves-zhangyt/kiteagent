@@ -17,17 +17,17 @@ func TestReceiveSmallFile(t *testing.T) {
 	content := base64.StdEncoding.EncodeToString([]byte("你好，小文件1"))
 	command.Body = "{\"targetPath\": \"smallFile.txt\",\"payloadType\":\"base64\", \"payload\": \"" + content + "\"}"
 
-	cmdRessult := ReceiveSmallFile(&command)
-	if cmdRessult.Stdout != "ok" {
-		t.Errorf("recieve file err: %v", cmdRessult.Stderr)
+	cmdResult := ReceiveSmallFile(&command)
+	if cmdResult.Stdout != "ok" {
+		t.Errorf("recieve file err: %v", cmdResult.Stderr)
 	}
 
 	content = "普通文本"
 	command.Body = "{\"targetPath\": \"smallFile1.txt\", \"payload\": \"" + content + "\"}"
 
-	cmdRessult = ReceiveSmallFile(&command)
-	if cmdRessult.Stdout != "ok" {
-		t.Errorf("recieve file err: %v", cmdRessult.Stderr)
+	cmdResult = ReceiveSmallFile(&command)
+	if cmdResult.Stdout != "ok" {
+		t.Errorf("recieve file err: %v", cmdResult.Stderr)
 	}
 
 }
