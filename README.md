@@ -23,12 +23,3 @@ kiteagent项目是是flying-kite的子项目，是kitemanager的客户端(agent)
 | ------------ | ------------ |
 | cmd.rum  | 通用命令 |
 | proxy.http | http代理命令 |
-
-#### 四. 体验
-详见 https://yt.wavesxa.com/blog/readBlog/27.html 位较低版本示例，最新版本应用说明待续。
-
-kitemanager端示例图类似如下
-列表
-![](https://yt.wavesxa.com/blog/attachment/24-kitemanager-index-v0.7.0.jpg?id=19)
-命令执行
-![](https://yt.wavesxa.com/blog/attachment/24-kite-exec-v0.7.0.jpg?id=20)
